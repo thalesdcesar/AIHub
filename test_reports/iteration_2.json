@@ -1,0 +1,33 @@
+{
+  "summary": "Quick frontend retest at 375x667. PASS: the activation screen shows only MAC (18:41:B9:44:28:D3), Senha (798373) and Status ('Lista ativa') and goes to /browser on its own. PASS: opening /player directly and tapping Voltar now goes to /browser (no GO_BACK error). PASS: when /api/playlist/channels fails (forced with route abort), list-error-state appears, and retry-list-button reloads the items. PASS: the loading overlay now shows for the new channel after Next/Prev. Two player issues remain. (1) The 'fresh' gate waits for a 'loading' statusChange event. That event does not fire when the status does not actually change (web: idle->readyToPlay or readyToPlay->readyToPlay; native: Next tapped while the previous channel is still 'loading'). So readyToPlay and error events for the new source are ignored, and the spinner stays until the 15s START_TIMEOUT. Measured on web: the video was ready (readyState 4) at 6s, but the overlay only went away at 15s. (2) The controls still auto-hide while the video is not playing. The effect only checks isPlaying, and expo-video sets isPlaying=true as soon as play() is called, before any frame plays. Seen: controls hidden at 4s while the video was loading or paused, which leaves a black screen with no UI at 15s and later. No deprecated packages found.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "player.tsx fresh gate (lines 50, 63, 94-113)", "issue": "readyToPlay and error events are ignored until a 'loading' event arrives. expo-video only emits statusChange when the status actually changes (see VideoPlayer.web.js set status / onwaiting). Web: the status goes idle->readyToPlay, or stays readyToPlay, so 'loading' never fires. Native: if the user taps Next while the old channel is still 'loading', nothing is emitted. Result: the new channel shows the spinner for the full 15s START_TIMEOUT even when it is ready, and a fast 'error' is not acted on for 15s. Verified on web: readyState 4 at t=6s, overlay hidden only at t=15s.", "testID": "player-loading", "priority": "HIGH"},
+      {"component": "player.tsx controls visibility (lines 124-132)", "issue": "Controls still hide after 4s while the video is loading or paused. expo-video sets isPlaying=true synchronously in replace() and in onplay when play() is called, before any frame plays. A load() interrupt (AbortError) then pauses the video without a pause event. Verified: controls hidden from t=4s while loading=true and the video was paused, and a fully black screen with no UI from t=15s on.", "testID": "player-play-pause-button", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "browser fetchPage pagination", "issue": "When a page with offset>0 fails, listError is set, but list-error-state is the list's empty component, so nothing shows while items exist. Infinite scroll just stops silently. Minor.", "affected_testIDs": ["list-error-state", "channel-list"]},
+      {"flow": "player web", "issue": "Still logs the uncaught 'The play() request was interrupted by a new load request': replaceAsync on web already calls video.play(), and the extra player.play() causes this. Cosmetic.", "affected_testIDs": ["player-screen"]}
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "HIGH player.tsx: do not rely only on a 'loading' event to mark the source as fresh. Options: listen to 'sourceChange' and set fresh=true, then check player.status right away (and again every ~500ms) while phase==='loading'. Or detect real playback by currentTime moving forward (player.timeUpdateEventInterval=0.5 plus a 'timeUpdate' listener), which works on both web and native. Make sure a ready or failed new channel leaves the loading state in well under 15s, including when Next is tapped mid-load.",
+    "MEDIUM player.tsx: keep the controls visible while phase !== 'playing' (not only while !isPlaying). Only start the hide timer once phase==='playing' and isPlaying are both true.",
+    "Minor: show an inline error/retry footer when a page with offset>0 fails in browser.tsx."
+  ],
+  "critical_code_review_comments": [
+    "Back fallback (canGoBack ? back : replace('/browser')) is correct and verified.",
+    "In the start timer, readyToPlay with candRef===ci leads to markPlaying. On web that is the only path that ever marks the channel as playing, so it always takes 15s."
+  ],
+  "updated_files": ["/app/test_reports/iteration_2.json"],
+  "success_rate": {"backend": "not retested (14/14 in iteration_1)", "frontend": "~70% (4/6 checks pass; 2 player issues)"},
+  "seed_data_creation": "None. Read-only; used the credentials from test_credentials.md.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Repro: set localStorage iptv_device_mac/pin, then /browser -> first channel-item. Poll player-loading, player-play-pause-button and video.readyState every second: before the fix, readyState is 4 at ~6s but loading stays true until 15s, and the controls disappear at 4s. Use route.abort on **/api/playlist/channels** to test list-error-state.",
+  "rca_of_issue": "expo-video statusChange is only emitted when the status changes, so the 'wait for loading' freshness gate deadlocks whenever the status was already 'loading' or never passes through 'loading' (web canplay goes straight to readyToPlay). expo-video's 'playing' flag becomes true as soon as play() is requested, not when frames are rendered, so the isPlaying-only rule for keeping controls visible fails."
+}

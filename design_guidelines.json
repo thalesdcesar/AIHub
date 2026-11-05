@@ -1,0 +1,144 @@
+{
+  "app_name": "Premium IPTV",
+  "personality": "6 Glass / Luxe",
+  "personality_one_liner": "Cinematic, expensive, and dark negative space with a focus on immersive media consumption.",
+  "color": {
+    "surface": "#050505",
+    "onSurface": "#FFFFFF",
+    "surfaceSecondary": "#141414",
+    "onSurfaceSecondary": "#E5E5E5",
+    "surfaceTertiary": "#262626",
+    "onSurfaceTertiary": "#CCCCCC",
+    "surfaceInverse": "#FAFAFA",
+    "onSurfaceInverse": "#050505",
+    "brand": "#D91627",
+    "brandPrimary": "#E50914",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#B81D2D",
+    "onBrandSecondary": "#FFFFFF",
+    "brandTertiary": "#3B1316",
+    "onBrandTertiary": "#FFD4D7",
+    "success": "#10B981",
+    "onSuccess": "#FFFFFF",
+    "warning": "#FBBF24",
+    "onWarning": "#000000",
+    "error": "#EF4444",
+    "onError": "#FFFFFF",
+    "info": "#A3A3A3",
+    "onInfo": "#000000",
+    "border": "#262626",
+    "borderStrong": "#404040",
+    "divider": "#1A1A1A",
+    "muted": "#808080",
+    "onBrand": "#FFFFFF"
+  },
+  "typography": {
+    "displayFontFamily": "Fraunces",
+    "textFontFamily": "Satoshi",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Generous spacing. Empty space is intentional. Use xl/2xl for main section gaps.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": "0",
+  "navigation": "stack_only",
+  "icon_set": "Ionicons",
+  "glassmorphism": {
+    "enabled": true,
+    "do's": [
+      "Use glass/blur for the Activation card over the cinematic background.",
+      "Use glass for the top header / search bar over scrolling EPG/channel content.",
+      "Use glass for the video player controls overlay.",
+      "Pair blur with a translucent tinted base (≥75% of surface) underneath for readability."
+    ],
+    "dont's": [
+      "Do not apply glass to body text regions or form fields.",
+      "Do not use generic shadows; rely entirely on blur and translucent layering."
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Activation",
+      "purpose": "Minimalist ten-foot UI display for initial device linking.",
+      "states": {
+        "loading": "Subtle pulse on the status text",
+        "empty": "N/A",
+        "error": "Status badge turns to 'Bloqueada' or 'Expirada'"
+      },
+      "layout": "Full-bleed cinematic background image with a top-to-bottom dark gradient scrim. A centered, frosted glass card displaying ONLY the MAC Address (large mono-spaced feel), PIN (Senha), and a status indicator (Aguardando...). NO BUTTONS. The screen must auto-poll/mock a transition to the next screen upon activation."
+    },
+    {
+      "name": "ChannelBrowser",
+      "purpose": "Discovery interface for live TV and VOD content with immediate visual hierarchy.",
+      "states": {
+        "loading": "Glass skeletons for channel list",
+        "empty": "Glassy empty state with a subtle branded illustration",
+        "error": "Glass modal over the list with a retry button"
+      },
+      "layout": "Glassy sticky header containing Search and a horizontal row of 4 pills ('TV Ao Vivo', 'Filmes', 'Séries', 'Músicas'). Below is a rich 2-column or list layout of channels/content cards. Cards use 'surfaceSecondary' with actual channel logos or movie posters. A gradient-to-dark scrim MUST sit between any image and its text."
+    },
+    {
+      "name": "VideoPlayer",
+      "purpose": "Immersive, full-screen playback with distraction-free overlay controls.",
+      "states": {
+        "loading": "Centered spinner over pure black background",
+        "empty": "N/A",
+        "error": "Error message with a primary 'Retry' action over pure black"
+      },
+      "layout": "Pure black screen surface. Video plays in the background. A bottom glassmorphism overlay houses the Play/Pause, Next/Prev channel controls. Controls should auto-hide. Include an explicit error state with a retry button to meet requirements."
+    }
+  ],
+  "images": {
+    "activation_bg": {
+      "url": "https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njd8MHwxfHNlYXJjaHwxfHxjaW5lbWF0aWMlMjBkYXJrJTIwYWJzdHJhY3QlMjBiYWNrZ3JvdW5kfGVufDB8fHx8MTc5MzgzNjU0MXww&ixlib=rb-4.1.0&q=85",
+      "alt": "Cinematic dark abstract background"
+    },
+    "hbo_logo": {
+      "url": "https://images.unsplash.com/photo-1761044591339-d958277e7858?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1ODF8MHwxfHNlYXJjaHwxfHxoYm8lMjBsb2dvJTIwdHJhbnNwYXJlbnQlMjBwbmd8ZW58MHx8fHwxNzkzODM2NTQxfDA&ixlib=rb-4.1.0&q=85",
+      "alt": "HBO Max Logo"
+    },
+    "movie_poster": {
+      "url": "https://images.unsplash.com/photo-1679329614246-f099ba78c6aa?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzV8MHwxfHNlYXJjaHwxfHxtb3ZpZSUyMHBvc3RlciUyMHNwYWNlJTIwc2NpJTIwZml8ZW58MHx8fHwxNzkzODM2NTQxfDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Sci-Fi Movie Poster"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Implement the '6 Glass / Luxe' personality. Relies heavily on cinematic depth, dark negative space, and frosted glass overlays (expo-blur) rather than heavy drop shadows.",
+    "CRITICAL: The Activation screen MUST NOT contain any interactive buttons. Display the MAC, Senha, and a Status Badge. Mock an automatic polling sequence (e.g., setTimeout) that transitions from 'Aguardando' to 'Ativa' and navigates to the ChannelBrowser.",
+    "For the ChannelBrowser, implement a sticky top glass header for search and the 4 category chips (TV Ao Vivo, Filmes, Séries, Músicas). Use the provided HBO logo and Sci-Fi poster images for list items.",
+    "Zero tolerance for rendering text directly on images without a scrim. Always use a top-to-bottom expo-linear-gradient (transparent to >=75% surfaceInverse/black) behind text that sits over images.",
+    "Build the VideoPlayer as a full-screen view (pure black background) with a translucent glass overlay at the bottom for controls (Play/Pause, Next/Prev). Ensure loading and error (with retry button) states fill the flex container.",
+    "Ensure 'Fraunces' is used for display/hero headings and 'Satoshi' for body text to maintain the premium cinematic feel."
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "summary": "Backend 14/14 pytest passed (device status pending/active/wrong_pin/422, summary ready+counts/groups consistency, 403 for non-active, channels section/group/search/pagination/400/422). Frontend: activation screen shows ONLY MAC, Senha, Status (0 interactive elements) and auto-navigates to /browser when active; browser chips, group chips, search (debounced), empty state, infinite scroll (offset 0/60/120 requests), reload button all work. Player opens with loading overlay, back/prev/next/play-pause work. BUGS: (1) stale expo-video status after Next/Prev hides loading overlay and cancels start-timeout for the new channel; (2) controls auto-hide even when video is not playing -> blank black screen; (3) /player deep link 'Voltar' throws GO_BACK not handled. DATA NOTE: during testing (00:06:41Z) the only Firestore 'clientes' doc was edited externally: its mac changed to 18:41:b9:44:28:d3, so the test device AA:87:CC:2B:8F:52 now returns 'pending' and test_credentials.md is stale. The tester made NO Firestore writes. No deprecated packages found (uses expo-video).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/playlist/summary, /api/playlist/channels, /api/device/status", "issue": "Every request does 1-3 sequential Firestore runQuery calls (upper, lower, original MAC variants). The stored MAC is now lowercase, so each page/scroll costs 2 round-trips, and pending devices polling every 4s cost 3. Consider a short (~30-60s) in-memory cache of resolve_device results and a single 'IN' query."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "player.tsx status effect (lines 79-100)", "issue": "The effect depends on loadCandidate, which is recreated when the channel changes. On Next/Prev it re-runs with the PREVIOUS channel's status: if that was 'readyToPlay', it calls setP('playing') and clears startTimer right after loadCandidate(0). Verified: after Next, the video has readyState=0 for 2s+ while player-loading is NOT shown (black screen, no spinner) and the 15s start-timeout fallback is cancelled. If the previous status was 'error' (e.g. after player-error-next-button), it calls loadCandidate(candRef+1) and skips the .m3u8 candidate for the new channel. Fix: track the source generation/candidate in a ref and ignore status events until the new source emits its own 'loading', or reset by keying the effect on status only (not loadCandidate) with a ref to the latest loadCandidate.", "testID": "player-next-button / player-loading", "priority": "HIGH"},
+      {"component": "player.tsx controls auto-hide", "issue": "Controls hide after 4s even when isPlaying=false (paused or play() rejected, e.g. autoplay policy). The result is a fully black screen with no affordance (seen on web: readyToPlay + paused). Keep controls visible while !isPlaying or phase !== 'playing'.", "testID": "player-play-pause-button", "priority": "MEDIUM"},
+      {"component": "player.tsx empty state", "issue": "Opening /player directly (refresh or deep link, empty playQueue) and tapping Voltar throws 'The action GO_BACK was not handled'. Use router.canGoBack() ? router.back() : router.replace('/browser'); apply the same to player-back-button.", "testID": "player-back-empty-button", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "browser fetchPage", "issue": "Channel page fetch errors are swallowed silently (empty catch): there is no error/retry UI if /playlist/channels fails, and empty-state 'Nada encontrado' shows instead.", "affected_testIDs": ["channel-list", "empty-state"]},
+      {"flow": "player web", "issue": "Unhandled 'AbortError: The play() request was interrupted by a new load request' logged in expo logs when switching sources (player.play() called while replaceAsync loads). Cosmetic on web.", "affected_testIDs": ["player-screen"]}
+    ],
+    "design_issues": [
+      {"screen": "browser", "issues": ["Section/group chips are 36px tall (<44 touch target)", "clear-search-button is 18x20 (+8 hitSlop = 34px) (<44)"]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_iptv_api.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "HIGH: Fix the stale-status race in player.tsx: after channel change, ignore the previous player status (generation ref), so the loading overlay shows and the start timeout and candidate fallback work for the new channel; also don't skip candidate 0 when the prior status was 'error'.",
+    "Keep player controls visible while the video is not playing (avoid the black screen with no UI).",
+    "Use canGoBack() fallback to router.replace('/browser') for player back buttons.",
+    "Show an error/retry state when /playlist/channels fails in browser.tsx.",
+    "Update /app/memory/test_credentials.md: the Firestore doc now has mac 18:41:b9:44:28:d3 (changed externally at 2026-11-05T00:06:41Z), so AA:87:CC:2B:8F:52 returns 'pending'.",
+    "Optional: cache resolve_device results briefly to cut Firestore round-trips per page request; increase chip heights to 44px."
+  ],
+  "critical_code_review_comments": [
+    "streamCandidates (.m3u8 first for Xtream live, then original, then .ts) is reasonable for the infinite-loading bug; verified that the web video element loads the .m3u8 candidate (readyState 4).",
+    "device.ts randomMac can produce multicast/odd first octets (e.g. 07:...); cosmetic only.",
+    "Backend parse/caching is solid: 300k items, summary 0.25s cached, series search over 276k items ~0.25s."
+  ],
+  "updated_files": ["/app/backend/tests/test_iptv_api.py"],
+  "success_rate": {"backend": "100% (14/14)", "frontend": "~80% (core flows OK; 3 player bugs)"},
+  "seed_data_creation": "None. No writes to Firestore or MongoDB. After the external edit, the active identity 18:41:B9:44:28:D3/798373 (taken from backend logs) was used read-only to finish the player tests.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Firestore 'clientes' has a single doc, editable externally; check the current mac with a read-only GET on documents/clientes before testing. The backend matches upper/lower MAC variants. On web, headless Chromium auto-upgrades http streams and reaches readyState 4 but stays paused, so the 45s error overlay may never appear. Test the stale-status bug by opening a channel, waiting ~6s for readyToPlay, tapping player-surface then player-next-button, and checking that player-loading is visible.",
+  "rca_of_issue": "Stale status: useEvent's 'status' keeps the last value from the previous source. Because the status effect lists loadCandidate in its deps and loadCandidate changes with channel, the effect re-fires synchronously after loadCandidate(0) with the old status ('readyToPlay' -> marks playing and clears the start timer; 'error' -> jumps to candidate 1). Repro: browser -> channel-item -> wait until the loading overlay disappears -> tap surface -> Next -> the overlay is not shown while the new source has readyState 0."
+}

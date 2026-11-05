@@ -1,0 +1,31 @@
+{
+  "summary": "Quick frontend-only retest of 2 player issues (375x667, web preview, channel A&E FHD H.265). HIGH fix (overlay waits 15s): PASS for the first channel. The overlay went away at ~6s, when video.readyState hit 4 (it used to take 15s). NEW REGRESSION after Next: the overlay never shows for the new channel. player.status is still the old channel's 'readyToPlay' right after replaceAsync resolves, so markPlaying() runs immediately. The spinner is gone at t=0 while readyState=0 until ~8s. MEDIUM fix (controls auto-hide): PARTIAL. Controls stay visible while phase=loading (0-6s, OK). But once phase=playing they hide at t=10s while the <video> is actually PAUSED (paused=true, currentTime=0), leaving a black screen with no UI. RCA: the video events were play@34ms, abort@42ms (load() from replace aborts the play), then canplay@6.7s. After that, nothing calls play() again: markPlaying() skips play() because player.playing is stale-true, and isPlaying stays true. Calling video.play() by hand after canplay played the stream fine (currentTime moved 0 -> 6.2s, A&E picture visible). So the stream works; the player logic just never restarts playback.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "player.tsx markPlaying (line 56) + loadCandidate (line 81)", "issue": "On web the video never starts playing. play() is called and then aborted by the source load (events: play@34, abort@42, loadstart@45, canplay@6736). markPlaying() only calls play() when !player.playing, but player.playing is stale-true, so play() is never sent again. Result: video paused at 0s, overlay hidden, controls hidden 4s later, black screen. Calling video.play() by hand after canplay works.", "testID": "player-loading", "priority": "HIGH"},
+      {"component": "player.tsx loadCandidate (line 82), Next/Prev", "issue": "Regression. After Next, player.status still holds the previous channel's 'readyToPlay' when replaceAsync resolves, so markPlaying() runs at t=0. The loading overlay never appears for the new channel (readyState stayed 0 until ~8s), and the controls hide at 4s on a black screen.", "testID": "player-loading", "priority": "HIGH"},
+      {"component": "player.tsx reallyPlaying (line 128)", "issue": "reallyPlaying relies on isPlaying, which is stale-true on web while the <video> is paused. Controls hid at t=10s with paused=true and currentTime=0.", "testID": "player-play-pause-button", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "In markPlaying(), always call player.play() (remove the `if (!player.playing)` guard). The first play() is aborted by the source load on web, and player.playing stays stale-true.",
+    "Do not trust player.status right after replaceAsync: it may be the previous source's 'readyToPlay'. Options: save prevStatus before replace and only markPlaying immediately if prevStatus !== 'readyToPlay'. Or better, listen to expo-video's 'sourceLoad' event (or poll status every ~500ms after fresh) to detect that the new source is ready.",
+    "Gate the controls auto-hide on real playback progress, e.g. the 'timeUpdate' event with currentTime advancing (set player.timeUpdateEventInterval) instead of isPlaying, which goes stale."
+  ],
+  "critical_code_review_comments": [
+    "player.tsx:82: the immediate status check after replaceAsync reads stale status from the previous source when you change channel.",
+    "player.tsx:56: the `!player.playing` guard prevents recovery from an aborted play()."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "33% (1 of 3 checks pass: first-channel overlay timing)"},
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Repro: set localStorage iptv_device_mac/pin, go to /browser, tap the first channel-item. Each second, poll player-loading, player-play-pause-button, video.readyState, video.paused and video.currentTime. Add capture listeners for play/abort/canplay on VIDEO. Then tap player-next-button and poll again; the overlay should show while readyState=0.",
+  "rca_of_issue": "expo-video web: replace() sets the src and calls load(), which aborts a pending play(). playing stays true. markPlaying's guard skips play(), so the video stays paused. Status 'readyToPlay' from the old source carries over when replaceAsync resolves, so the new-channel overlay is skipped."
+}
